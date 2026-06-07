@@ -1,4 +1,4 @@
-# ffscraper
+# cryobankscraper
 
 C++ scraper for Fairfax Cryobank donor profile pages. It fetches donor URLs, extracts photos from each profile, and writes a JSON gallery you can browse in the Qt app.
 
