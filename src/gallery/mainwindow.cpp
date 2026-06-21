@@ -115,6 +115,21 @@ bool entryHasDonorProfilePic(const GalleryEntry &e)
     return scrapeff::childhoodPhotoDidFromImageUrl(e.imageUrl).has_value();
 }
 
+std::optional<int> entryDonorNumber(const GalleryEntry &e)
+{
+    if (e.profileNum)
+        return *e.profileNum;
+    return scrapeff::donorNumberFromProfileUrl(e.profileUrl);
+}
+
+bool entryEndsWithDigit(const GalleryEntry &e, int digit)
+{
+    const std::optional<int> n = entryDonorNumber(e);
+    if (!n)
+        return false;
+    return (*n % 10) == digit;
+}
+
 bool looksLikeDirectImageUrl(const QString &u)
 {
     if (u.isEmpty())
@@ -603,6 +618,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     filterCombo_->addItems({QStringLiteral("With profile pic"), QStringLiteral("All donors")});
     connect(filterCombo_, qOverload<int>(&QComboBox::currentIndexChanged), this, &MainWindow::onFilterChanged);
     fh->addWidget(filterCombo_, 1);
+    fh->addWidget(new QLabel(QStringLiteral("Ending in:")));
+    endingDigitCombo_ = new QComboBox;
+    endingDigitCombo_->addItem(QStringLiteral("Any"));
+    for (int d = 0; d <= 9; ++d)
+        endingDigitCombo_->addItem(QString::number(d));
+    connect(endingDigitCombo_, qOverload<int>(&QComboBox::currentIndexChanged), this,
+            &MainWindow::onEndingDigitChanged);
+    fh->addWidget(endingDigitCombo_);
     vbox_->addWidget(filterRow_);
 
     sortRow_ = new QWidget;
@@ -788,13 +811,17 @@ void MainWindow::clearGalleryBody()
 
 QVector<GalleryEntry> MainWindow::filteredEntries() const
 {
-    if (!filterCombo_ || filterCombo_->currentIndex() != 0)
-        return entriesRaw_;
     QVector<GalleryEntry> out;
     out.reserve(entriesRaw_.size());
+    const bool requireProfilePic = filterCombo_ && filterCombo_->currentIndex() == 0;
+    const int endingDigit = endingDigitCombo_ ? endingDigitCombo_->currentIndex() - 1 : -1;
+
     for (const GalleryEntry &e : entriesRaw_) {
-        if (entryHasDonorProfilePic(e))
-            out.append(e);
+        if (requireProfilePic && !entryHasDonorProfilePic(e))
+            continue;
+        if (endingDigit >= 0 && !entryEndsWithDigit(e, endingDigit))
+            continue;
+        out.append(e);
     }
     return out;
 }
@@ -828,6 +855,8 @@ void MainWindow::rebuildGallery()
     QString filterHint;
     if (filterCombo_ && filterCombo_->currentIndex() == 0)
         filterHint = QStringLiteral(" · <b>filter:</b> with profile pic");
+    if (endingDigitCombo_ && endingDigitCombo_->currentIndex() > 0)
+        filterHint += QStringLiteral(" · <b>ending in:</b> %1").arg(endingDigitCombo_->currentText());
     QString sortHint;
     if (sortCombo_->currentIndex() == 0)
         sortHint = QStringLiteral(" · <b>sort:</b> donor id");
@@ -888,6 +917,15 @@ void MainWindow::rebuildGallery()
 }
 
 void MainWindow::onFilterChanged(int)
+{
+    if (entriesRaw_.isEmpty())
+        return;
+    rebuildGallery();
+    if (!galleryStatus_.isEmpty())
+        statusBar()->showMessage(galleryStatus_);
+}
+
+void MainWindow::onEndingDigitChanged(int)
 {
     if (entriesRaw_.isEmpty())
         return;

@@ -43,6 +43,7 @@ protected:
 private slots:
     void onOpenFile();
     void onFilterChanged(int index);
+    void onEndingDigitChanged(int index);
     void onSortChanged(int index);
     void onBuiltinScrapeFinished(int exitCode);
     void tickSpinner();
@@ -77,6 +78,7 @@ private:
     QLabel *summary_ = nullptr;
     QWidget *filterRow_ = nullptr;
     QComboBox *filterCombo_ = nullptr;
+    QComboBox *endingDigitCombo_ = nullptr;
     QWidget *sortRow_ = nullptr;
     QComboBox *sortCombo_ = nullptr;
     QAction *openJsonAction_ = nullptr;
